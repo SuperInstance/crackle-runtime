@@ -31,13 +31,13 @@ fn main() {
     let mut kiln = Kiln::new(ThermalProfile::default());
 
     // Normal builds
-    kiln.fire_and_record(CiBuild { duration_secs: 45.0, test_count: 200.0, branch: "feature/auth".into() });
-    kiln.fire_and_record(CiBuild { duration_secs: 42.0, test_count: 195.0, branch: "fix/typo".into() });
-    kiln.fire_and_record(CiBuild { duration_secs: 48.0, test_count: 210.0, branch: "feature/ui".into() });
+    kiln.fire_and_record(CiBuild { duration_secs: 45.0, test_count: 200.0, branch: "feature/auth".into() }).unwrap();
+    kiln.fire_and_record(CiBuild { duration_secs: 42.0, test_count: 195.0, branch: "fix/typo".into() }).unwrap();
+    kiln.fire_and_record(CiBuild { duration_secs: 48.0, test_count: 210.0, branch: "feature/ui".into() }).unwrap();
 
     // Something changed — builds got slower
-    kiln.fire_and_record(CiBuild { duration_secs: 95.0, test_count: 200.0, branch: "feature/cache".into() });
-    kiln.fire_and_record(CiBuild { duration_secs: 102.0, test_count: 198.0, branch: "chore/deps".into() });
+    kiln.fire_and_record(CiBuild { duration_secs: 95.0, test_count: 200.0, branch: "feature/cache".into() }).unwrap();
+    kiln.fire_and_record(CiBuild { duration_secs: 102.0, test_count: 198.0, branch: "chore/deps".into() }).unwrap();
 
     let patterns = kiln.cool();
     println!("CI Build Pattern Analysis");

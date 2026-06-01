@@ -147,6 +147,8 @@ let glazed = GlazeLayer::new(my_task)
 
 No background threads. No async runtime. Pure synchronous detection that runs when you call `cool()`.
 
+> **Note:** Despite the name "runtime", this crate is fully synchronous. There is no async executor, no background thread pool, and no event loop. The "runtime" refers to the firing/cooling lifecycle of the kiln, not an async runtime.
+
 ## Philosophy 🏺
 
 The name comes from pottery: *crackle glaze* forms during cooling, not firing. The glaze and clay contract at different rates, producing fine cracks you can't design — only create conditions for. Similarly, the patterns crackle-runtime detects emerge from the aggregate behavior of your tasks, visible only in retrospect.

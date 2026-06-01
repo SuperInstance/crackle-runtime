@@ -39,8 +39,8 @@
 //! let mut kiln = Kiln::new(ThermalProfile::fast_cooling());
 //!
 //! // Fire tasks
-//! kiln.fire_task(NumberTask { value: 3.14 });
-//! kiln.fire_task(NumberTask { value: 2.71 });
+//! kiln.fire_task(NumberTask { value: 3.14 }).unwrap();
+//! kiln.fire_task(NumberTask { value: 2.71 }).unwrap();
 //!
 //! // Let the kiln cool and detect patterns
 //! let patterns = kiln.cool();

@@ -29,11 +29,11 @@ impl CrackleTask for NumberTask {
 fn main() {
     let mut kiln = Kiln::new(ThermalProfile::fast_cooling());
 
-    kiln.fire_and_record(NumberTask { value: 2.0, name: "a".into() });
-    kiln.fire_and_record(NumberTask { value: 2.1, name: "b".into() });
-    kiln.fire_and_record(NumberTask { value: 9.8, name: "c".into() });
-    kiln.fire_and_record(NumberTask { value: 10.0, name: "d".into() });
-    kiln.fire_and_record(NumberTask { value: 2.2, name: "e".into() });
+        kiln.fire_and_record(NumberTask { value: 2.0, name: "a".into() }).unwrap();
+    kiln.fire_and_record(NumberTask { value: 2.1, name: "b".into() }).unwrap();
+    kiln.fire_and_record(NumberTask { value: 9.8, name: "c".into() }).unwrap();
+    kiln.fire_and_record(NumberTask { value: 10.0, name: "d".into() }).unwrap();
+    kiln.fire_and_record(NumberTask { value: 2.2, name: "e".into() }).unwrap();
 
     println!("Tasks in kiln: {}", kiln.task_count());
 

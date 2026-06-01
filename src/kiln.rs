@@ -3,6 +3,7 @@ use crate::patterns::{
     ClusteringPattern, ConservationPattern, CorrelationPattern, CracklePattern, PhaseTransitionPattern,
 };
 use crate::profile::ThermalProfile;
+use crate::error::CrackleError;
 
 /// A completed task entry stored in the kiln.
 #[derive(Debug, Clone)]
@@ -45,6 +46,7 @@ impl TaskEntry {
 /// ```
 /// use crackle_runtime::{CrackleTask, Kiln, ThermalProfile, TaskOutput};
 ///
+/// # fn main() -> crackle_runtime::Result<()> {
 /// struct MyTask { x: f64 }
 /// impl CrackleTask for MyTask {
 ///     type Output = f64;
@@ -54,11 +56,13 @@ impl TaskEntry {
 /// }
 ///
 /// let mut kiln = Kiln::new(ThermalProfile::default());
-/// kiln.fire_task(MyTask { x: 1.0 });
-/// kiln.fire_task(MyTask { x: 2.0 });
-/// kiln.fire_task(MyTask { x: 3.0 });
+/// kiln.fire_task(MyTask { x: 1.0 })?;
+/// kiln.fire_task(MyTask { x: 2.0 })?;
+/// kiln.fire_task(MyTask { x: 3.0 })?;
 ///
 /// let patterns = kiln.cool();
+/// # Ok(())
+/// # }
 /// ```
 pub struct Kiln {
     profile: ThermalProfile,
@@ -81,25 +85,33 @@ impl Kiln {
         Kiln::new(ThermalProfile::default())
     }
 
-    /// Fire a single task and record its output.
+    /// Fire a single task and return its output (without recording).
     ///
     /// Returns the task's output value.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if called after `cool()`.
-    pub fn fire_task<T: CrackleTask>(&self, task: T) -> TaskOutput<T::Output> {
-        assert!(!self.cooled, "cannot fire tasks after cooling");
+    /// Returns [`CrackleError::KilnCooled`] if called after `cool()`.
+    pub fn fire_task<T: CrackleTask>(&self, task: T) -> crate::Result<TaskOutput<T::Output>> {
+        if self.cooled {
+            return Err(CrackleError::KilnCooled);
+        }
 
-        task.fire()
+        Ok(task.fire())
     }
 
     /// Fire a task and record it in the kiln for later cooling.
     ///
     /// This stores the task's metrics internally so patterns can be detected
     /// during the cooling phase.
-    pub fn fire_and_record<T: CrackleTask>(&mut self, task: T) -> TaskOutput<T::Output> {
-        assert!(!self.cooled, "cannot fire tasks after cooling");
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CrackleError::KilnCooled`] if called after `cool()`.
+    pub fn fire_and_record<T: CrackleTask>(&mut self, task: T) -> crate::Result<TaskOutput<T::Output>> {
+        if self.cooled {
+            return Err(CrackleError::KilnCooled);
+        }
 
         let label = task.label();
         let fired_at = Timestamp::now();
@@ -123,11 +135,15 @@ impl Kiln {
         };
 
         self.entries.push(entry);
-        output
+        Ok(output)
     }
 
     /// Fire multiple tasks in sequence and record them all.
-    pub fn fire_all<T: CrackleTask>(&mut self, tasks: Vec<T>) -> Vec<TaskOutput<T::Output>> {
+    ///
+    /// # Errors
+    ///
+    /// Returns the first error encountered. Already-fired tasks are still recorded.
+    pub fn fire_all<T: CrackleTask>(&mut self, tasks: Vec<T>) -> crate::Result<Vec<TaskOutput<T::Output>>> {
         tasks
             .into_iter()
             .map(|task| self.fire_and_record(task))

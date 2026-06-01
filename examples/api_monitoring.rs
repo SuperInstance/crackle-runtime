@@ -33,17 +33,17 @@ fn main() {
     let mut kiln = Kiln::new(ThermalProfile::default());
 
     // /api/users — fast, small responses
-    kiln.fire_and_record(ApiRequest { endpoint: "GET /api/users".into(), latency_ms: 45.0, status: 200, response_bytes: 1200.0 });
-    kiln.fire_and_record(ApiRequest { endpoint: "GET /api/users".into(), latency_ms: 48.0, status: 200, response_bytes: 1150.0 });
-    kiln.fire_and_record(ApiRequest { endpoint: "GET /api/users".into(), latency_ms: 52.0, status: 200, response_bytes: 1300.0 });
+    kiln.fire_and_record(ApiRequest { endpoint: "GET /api/users".into(), latency_ms: 45.0, status: 200, response_bytes: 1200.0 }).unwrap();
+    kiln.fire_and_record(ApiRequest { endpoint: "GET /api/users".into(), latency_ms: 48.0, status: 200, response_bytes: 1150.0 }).unwrap();
+    kiln.fire_and_record(ApiRequest { endpoint: "GET /api/users".into(), latency_ms: 52.0, status: 200, response_bytes: 1300.0 }).unwrap();
 
     // /api/reports — slow, large responses (correlated with bytes)
-    kiln.fire_and_record(ApiRequest { endpoint: "GET /api/reports".into(), latency_ms: 350.0, status: 200, response_bytes: 55000.0 });
-    kiln.fire_and_record(ApiRequest { endpoint: "GET /api/reports".into(), latency_ms: 380.0, status: 200, response_bytes: 62000.0 });
+    kiln.fire_and_record(ApiRequest { endpoint: "GET /api/reports".into(), latency_ms: 350.0, status: 200, response_bytes: 55000.0 }).unwrap();
+    kiln.fire_and_record(ApiRequest { endpoint: "GET /api/reports".into(), latency_ms: 380.0, status: 200, response_bytes: 62000.0 }).unwrap();
 
     // /api/health — tiny, always fast (conservation candidate)
-    kiln.fire_and_record(ApiRequest { endpoint: "GET /api/health".into(), latency_ms: 3.0, status: 200, response_bytes: 15.0 });
-    kiln.fire_and_record(ApiRequest { endpoint: "GET /api/health".into(), latency_ms: 4.0, status: 200, response_bytes: 15.0 });
+    kiln.fire_and_record(ApiRequest { endpoint: "GET /api/health".into(), latency_ms: 3.0, status: 200, response_bytes: 15.0 }).unwrap();
+    kiln.fire_and_record(ApiRequest { endpoint: "GET /api/health".into(), latency_ms: 4.0, status: 200, response_bytes: 15.0 }).unwrap();
 
     let patterns = kiln.cool();
     println!("API Monitoring — Pattern Report");

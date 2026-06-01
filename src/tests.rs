@@ -172,7 +172,7 @@ mod tests {
     #[test]
     fn kiln_fire_and_record() {
         let mut kiln = Kiln::default_profile();
-        let out = kiln.fire_and_record(ConstTask::new(42.0, "t1"));
+        let out = kiln.fire_and_record(ConstTask::new(42.0, "t1")).unwrap();
         assert_eq!(out.value, 42.0);
         assert_eq!(kiln.task_count(), 1);
     }
@@ -185,7 +185,7 @@ mod tests {
             ConstTask::new(2.0, "t2"),
             ConstTask::new(3.0, "t3"),
         ];
-        let outputs = kiln.fire_all(tasks);
+        let outputs = kiln.fire_all(tasks).unwrap();
         assert_eq!(outputs.len(), 3);
         assert_eq!(kiln.task_count(), 3);
     }
@@ -587,7 +587,7 @@ mod tests {
         let glazed = GlazeLayer::new(task)
             .with_derived_metric("squared", |o| o.value * o.value);
 
-        let output = kiln.fire_and_record(glazed);
+        let output = kiln.fire_and_record(glazed).unwrap();
         assert_eq!(output.value, 5.0);
         assert_eq!(kiln.task_count(), 1);
 
@@ -682,9 +682,9 @@ mod tests {
     #[test]
     fn vec_task_in_kiln() {
         let mut kiln = Kiln::new(ThermalProfile::fast_cooling());
-        kiln.fire_and_record(VecTask { v: vec![1.0, 2.0], lbl: "v1".into() });
-        kiln.fire_and_record(VecTask { v: vec![1.1, 2.1], lbl: "v2".into() });
-        kiln.fire_and_record(VecTask { v: vec![10.0, 20.0], lbl: "v3".into() });
+        kiln.fire_and_record(VecTask { v: vec![1.0, 2.0], lbl: "v1".into() }).unwrap();
+        kiln.fire_and_record(VecTask { v: vec![1.1, 2.1], lbl: "v2".into() }).unwrap();
+        kiln.fire_and_record(VecTask { v: vec![10.0, 20.0], lbl: "v3".into() }).unwrap();
         let patterns = kiln.cool();
         assert!(!patterns.is_empty());
     }
