@@ -1,78 +1,70 @@
-# crackle-runtime 🏺
+# crackle-runtime
 
-> *The crackle glaze forms in the cooling, not the firing. Beauty is not made in the heat. It arrives in the descent.*
-
-A Rust task execution framework where tasks have a **firing phase** (hot execution) and a **cooling phase** (deferred pattern detection). During cooling, the runtime detects emergent patterns across completed tasks that weren't visible during execution.
+**Detect emergent patterns across task outputs in Rust.** Fire tasks, cool the kiln, discover clustering, correlations, phase transitions, and conservation laws you didn't design.
 
 [![crates.io](https://img.shields.io/crates/v/crackle-runtime.svg)](https://crates.io/crates/crackle-runtime)
 [![docs.rs](https://docs.rs/crackle-runtime/badge.svg)](https://docs.rs/crackle-runtime)
 
-## The Pottery Metaphor
+```toml
+cargo add crackle-runtime
+```
 
-In pottery, the most beautiful moment is not the firing — it's the cooling. When a kiln cools, the glaze and clay contract at different rates. The tension produces *craze lines*: fine, wandering, unrepeatable cracks that record the history of the transformation. You cannot design these cracks. You can only create the conditions for them and get out of the way.
-
-**crackle-runtime** applies this insight to task execution:
-
-| Pottery | crackle-runtime |
-|---------|----------------|
-| Firing the kiln | Executing tasks (`fire()`) |
-| Glaze and clay | Task outputs and metrics |
-| Cooling | Pattern detection across completed tasks (`cool()`) |
-| Craze lines | Emergent patterns invisible during execution |
-| Thermal profile | `ThermalProfile` — controls detection sensitivity |
-| Glaze layer | `GlazeLayer` — decorator that enriches task metrics |
-
-The key insight: **patterns that are invisible during execution become visible in retrospect**. Tasks that cluster together, conservation laws that hold across groups, unexpected correlations — these emerge only when you step back and look at the whole.
-
-## Quick Start
+## 30-Second Example
 
 ```rust
-use crackle_runtime::{CrackleTask, Kiln, ThermalProfile, TaskOutput, GlazeLayer};
+use crackle_runtime::{CrackleTask, Kiln, ThermalProfile, TaskOutput};
 
-// 1. Define a task
-struct TemperatureSensor { reading: f64, id: String }
+struct Sensor { reading: f64, id: String }
 
-impl CrackleTask for TemperatureSensor {
+impl CrackleTask for Sensor {
     type Output = f64;
-
     fn fire(&self) -> TaskOutput<Self::Output> {
-        TaskOutput::new(
-            self.reading,
-            vec![
-                ("temperature".into(), self.reading),
-                ("is_hot".into(), if self.reading > 30.0 { 1.0 } else { 0.0 }),
-            ],
-        )
+        TaskOutput::new(self.reading, vec![
+            ("value".into(), self.reading),
+            ("is_anomaly".into(), if self.reading > 40.0 { 1.0 } else { 0.0 }),
+        ])
     }
-
     fn label(&self) -> String { self.id.clone() }
 }
 
-// 2. Build a kiln and fire tasks
 let mut kiln = Kiln::new(ThermalProfile::fast_cooling());
+kiln.fire_and_record(Sensor { reading: 22.5, id: "s1".into() });
+kiln.fire_and_record(Sensor { reading: 23.1, id: "s2".into() });
+kiln.fire_and_record(Sensor { reading: 45.2, id: "s3".into() }); // outlier
 
-kiln.fire_and_record(TemperatureSensor { reading: 22.5, id: "sensor-1".into() });
-kiln.fire_and_record(TemperatureSensor { reading: 23.1, id: "sensor-2".into() });
-kiln.fire_and_record(TemperatureSensor { reading: 45.2, id: "sensor-3".into() });
-
-// 3. Cool the kiln — patterns emerge
 let patterns = kiln.cool();
-
-for pattern in &patterns {
-    println!("[{}] {}", pattern.kind(), pattern.description());
+for p in &patterns {
+    println!("[{}] {} (confidence: {:.2})", p.kind(), p.description(), p.confidence());
 }
-// [clustering] 2 tasks clustered together in metric space
-// [phase transition] metric 'temperature' shifted between first and second half
+// [clustering] 2 tasks clustered together in metric space (avg distance: 0.600)
+// [phase transition] metric 'value' shifted by 87.5% between first and second half of tasks
 ```
 
-## Core Concepts
+## What It Does
+
+crackle-runtime runs tasks that produce **named metrics**, then analyzes all metrics together to find patterns that were invisible during individual execution:
+
+| Pattern | What it detects |
+|---------|----------------|
+| **Clustering** | Tasks whose metrics are close in Euclidean space |
+| **Phase Transition** | Metrics that shifted significantly between the first and second half of tasks |
+| **Conservation** | Metrics that stay near-constant across a group (low coefficient of variation) |
+| **Correlation** | Pairs of metrics that move together (Pearson correlation) |
+
+All detection runs after execution completes — no overhead during your hot path.
+
+## Real-World Use Cases
+
+- **CI/CD anomaly detection** — Feed build durations and test counts as tasks, detect when build times cluster oddly or shift unexpectedly
+- **Load test analysis** — Run hundreds of request tasks, let the runtime find response-time clustering and throughput correlations
+- **API response monitoring** — Track latency, status codes, payload sizes across endpoints; detect emerging patterns before they become incidents
+- **Data pipeline quality** — Process records as tasks, detect conservation laws (row counts in = row counts out) and unexpected metric correlations
+
+## API Reference
 
 ### `CrackleTask` — The Task Trait
 
-Every task implements two phases:
-
-- **`fire()`** — The hot phase. Execute the work, produce output with named metrics.
-- **`cool()`** — Optional post-completion reflection. Examine all completed tasks.
+Implement `fire()` to produce output with named metrics:
 
 ```rust
 pub trait CrackleTask {
@@ -83,91 +75,19 @@ pub trait CrackleTask {
 }
 ```
 
-### `Kiln` — The Runtime
+- `fire()` — Execute and return `TaskOutput` with your value and metrics
+- `cool()` — Optional post-completion hook (default is no-op)
+- `label()` — Human-readable task name for pattern reports
 
-The kiln fires tasks and then cools them to detect patterns:
+### `Kiln` — The Runtime
 
 ```rust
 let mut kiln = Kiln::new(ThermalProfile::default());
-
-// Fire individual tasks
-kiln.fire_and_record(my_task);
-
-// Or fire a batch
-kiln.fire_all(tasks);
-
-// Cool and detect patterns
-let patterns = kiln.cool();
-
-// Reset for another cycle
-kiln.reset();
+kiln.fire_and_record(task);          // Execute and store metrics
+kiln.fire_all(tasks);                // Batch execute
+let patterns = kiln.cool();          // Run pattern detection
+kiln.reset();                        // Clear for next cycle
 ```
-
-### `ThermalProfile` — Cooling Control
-
-Controls the sensitivity and character of pattern detection:
-
-| Profile | Behavior |
-|---------|----------|
-| `fast_cooling()` | Many fine patterns, low thresholds (like quenching) |
-| `default()` | Balanced detection |
-| `slow_cooling()` | Fewer, higher-confidence patterns |
-| `no_detection()` | No pattern detection (benchmarking) |
-
-```rust
-let profile = ThermalProfile::default()
-    .with_rate(CoolingRate::Fast)
-    .without_clustering()       // disable specific detectors
-    .without_correlations();
-```
-
-### `GlazeLayer` — Task Decorator
-
-Enriches any task with derived metrics, making patterns more visible:
-
-```rust
-let glazed = GlazeLayer::new(my_task)
-    .with_derived_metric("magnitude", |out| out.value.abs())
-    .with_derived_metric("log_value", |out| out.value.ln());
-```
-
-Like a glaze layer in pottery — it doesn't change what the vessel *is*, it changes what it *reveals*.
-
-## Pattern Detectors
-
-crackle-runtime detects four types of emergent patterns:
-
-### 1. Clustering (`ClusteringPattern`)
-
-Tasks that cluster together in metric space. Like tasks that were fired near each other in the kiln and contracted similarly during cooling.
-
-```rust
-// These two sensors will cluster — their metrics are close
-kiln.fire_and_record(Sensor { temp: 22.0 });
-kiln.fire_and_record(Sensor { temp: 22.1 });
-// This one is far away — different cluster
-kiln.fire_and_record(Sensor { temp: 95.0 });
-```
-
-### 2. Phase Transitions (`PhaseTransitionPattern`)
-
-Shifts in output distributions during execution. Like a glaze that changes character mid-cooling.
-
-Detects when the first half of tasks produces significantly different metric values than the second half.
-
-### 3. Conservation Laws (`ConservationPattern`)
-
-Metrics that remain approximately constant across a group of tasks. Like a physical conservation law — energy, momentum, or crackle-runtime's equivalent.
-
-Detects metrics with low variance relative to their mean.
-
-### 4. Correlations (`CorrelationPattern`)
-
-Unexpected correlations between different metrics across tasks. Like two glazes that crack in parallel despite being on opposite sides of the kiln.
-
-Uses Pearson correlation to find metrics that move together.
-
-## API Reference
 
 ### `TaskOutput<T>`
 
@@ -179,33 +99,59 @@ let output = TaskOutput::new(42.0, vec![("x".into(), 1.0)])
 ### `CracklePattern`
 
 ```rust
-for pattern in kiln.cool() {
-    println!("Kind: {:?}", pattern.kind());        // Clustering, PhaseTransition, etc.
-    println!("Description: {}", pattern.description());
-    println!("Confidence: {:.2}", pattern.confidence());
-    println!("Tasks: {:?}", pattern.involved_tasks());
+for p in kiln.cool() {
+    p.kind();           // PatternKind::Clustering | PhaseTransition | Conservation | Correlation
+    p.description();    // Human-readable explanation
+    p.confidence();     // 0.0–1.0
+    p.involved_tasks(); // Which task labels are involved
+    p.metrics();        // Additional detected metrics
 }
 ```
 
-### `CoolingRate`
+### `ThermalProfile` — Sensitivity Control
+
+| Profile | Behavior |
+|---------|----------|
+| `fast_cooling()` | Low thresholds, more patterns detected (good for exploration) |
+| `default()` | Balanced |
+| `slow_cooling()` | High thresholds, only strong patterns (good for production) |
+| `no_detection()` | Skip detection entirely (benchmarking) |
 
 ```rust
-let rate = CoolingRate::Fast;
-let threshold = rate.cluster_threshold();        // 1.5
-let sensitivity = rate.phase_transition_sensitivity();  // 0.3
+let profile = ThermalProfile::default()
+    .with_rate(CoolingRate::Fast)
+    .without_clustering()      // disable specific detectors
+    .without_correlations();
 ```
 
-## Design Principles
+### `GlazeLayer` — Task Decorator
 
-1. **Beauty in the cooling.** The most interesting patterns emerge *after* execution, not during it.
-2. **You cannot design the cracks.** Pattern detection is observational, not prescriptive. Create conditions, then get out of the way.
-3. **The craze line is a record.** Each detected pattern records something that actually happened — a genuine emergent property of the task group.
-4. **Resistance is the vessel.** Constraints (thermal profile, detection thresholds) shape the patterns. Without constraints, there's no form.
-5. **Forgetting is the architecture.** The kiln doesn't remember why it fired. It only observes what emerged.
+Enriches any task with derived metrics for better pattern detection:
 
-## Inspiration
+```rust
+let glazed = GlazeLayer::new(my_task)
+    .with_derived_metric("magnitude", |out| out.value.abs())
+    .with_derived_metric("log_value", |out| out.value.ln());
+```
 
-This crate was inspired by ["The Potter Who Cracked the Glaze"](https://github.com/SuperInstance/ai-writings/tree/main/ford-creative-wheel) from the *Ford Creative Wheel* collection, which explores the idea that the most beautiful moment in pottery is not the firing but the cooling — the long, slow descent where craze lines form as the system returns to ordinary temperature.
+## How It Works
+
+1. **Fire phase** — Each task executes independently, producing a value and a set of named metrics
+2. **Record** — The kiln stores all task outputs and their metrics
+3. **Cool phase** — After all tasks complete, the runtime runs four detectors across the full metric set:
+   - Clustering: pairwise Euclidean distance with configurable threshold
+   - Phase transitions: first-half vs second-half mean comparison
+   - Conservation: coefficient of variation below tolerance
+   - Correlation: Pearson correlation between metric pairs
+4. **Results** — Patterns sorted by confidence, with involved tasks and explanatory descriptions
+
+No background threads. No async runtime. Pure synchronous detection that runs when you call `cool()`.
+
+## Philosophy 🏺
+
+The name comes from pottery: *crackle glaze* forms during cooling, not firing. The glaze and clay contract at different rates, producing fine cracks you can't design — only create conditions for. Similarly, the patterns crackle-runtime detects emerge from the aggregate behavior of your tasks, visible only in retrospect.
+
+Inspired by ["The Potter Who Cracked the Glaze"](https://github.com/SuperInstance/ai-writings/tree/main/ford-creative-wheel) from the *Ford Creative Wheel* collection.
 
 > *The firing was the transformation. The crack was the autobiography.*
 

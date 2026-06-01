@@ -3,10 +3,10 @@ name = "crackle-runtime"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "A task execution framework where beauty emerges in the cooling, not the firing"
+description = "Detect emergent patterns — clustering, correlations, phase transitions, and conservation laws — across task outputs"
 repository = "https://github.com/SuperInstance/crackle-runtime"
-keywords = ["task", "runtime", "pattern-detection", "emergent"]
-categories = ["concurrency", "data-structures"]
+keywords = ["patterns", "anomaly-detection", "task", "emergent", "clustering"]
+categories = ["algorithms", "development-tools"]
 
 [dependencies]
 
