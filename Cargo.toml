@@ -1,0 +1,13 @@
+[package]
+name = "crackle-runtime"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "A task execution framework where beauty emerges in the cooling, not the firing"
+repository = "https://github.com/SuperInstance/crackle-runtime"
+keywords = ["task", "runtime", "pattern-detection", "emergent"]
+categories = ["concurrency", "data-structures"]
+
+[dependencies]
+
+[dev-dependencies]
