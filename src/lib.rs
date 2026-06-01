@@ -53,6 +53,7 @@
 
 mod error;
 mod glaze;
+mod information;
 mod kiln;
 mod patterns;
 mod profile;
@@ -67,6 +68,10 @@ pub use patterns::{
 };
 pub use profile::{CoolingRate, ThermalProfile};
 pub use task::{CrackleTask, TaskMetadata, TaskOutput, Timestamp};
+pub use information::{
+    entropy, joint_entropy, jsd, kl_divergence, mutual_information, permutation_entropy,
+    transfer_entropy,
+};
 
 #[cfg(test)]
 mod tests;

@@ -4,6 +4,7 @@ use crate::patterns::{
 };
 use crate::profile::ThermalProfile;
 use crate::error::CrackleError;
+use crate::information::{entropy, jsd, kl_divergence, mutual_information, permutation_entropy};
 
 /// A completed task entry stored in the kiln.
 #[derive(Debug, Clone)]
@@ -252,5 +253,179 @@ impl Kiln {
     pub fn reset(&mut self) {
         self.entries.clear();
         self.cooled = false;
+    }
+
+    /// Compute the full mutual information matrix for all metric pairs.
+    ///
+    /// Returns a symmetric matrix where entry (i,j) is the mutual information
+    /// between metric i and metric j. Captures non-linear dependencies that
+    /// Pearson correlation misses.
+    ///
+    /// # Arguments
+    ///
+    /// * `bins` - Number of bins for discretization (typically 10)
+    ///
+    /// # Panics
+    ///
+    /// Panics if there are no metric names (empty kiln).
+    pub fn mi_matrix(&self, bins: usize) -> Vec<Vec<f64>> {
+        let metric_names = self.collect_metric_names();
+        let n = metric_names.len();
+        if n == 0 {
+            return vec![];
+        }
+
+        // Extract values for each metric
+        let metric_values: Vec<Vec<f64>> = metric_names
+            .iter()
+            .map(|name| {
+                self.entries
+                    .iter()
+                    .filter_map(|e| {
+                        e.all_metrics()
+                            .iter()
+                            .find(|(n, _)| n == name)
+                            .map(|(_, v)| *v)
+                    })
+                    .collect()
+            })
+            .collect();
+
+        let mut matrix = vec![vec![0.0f64; n]; n];
+
+        for i in 0..n {
+            matrix[i][i] = entropy(&metric_values[i], bins);
+            for j in (i + 1)..n {
+                let mi = mutual_information(&metric_values[i], &metric_values[j], bins);
+                matrix[i][j] = mi;
+                matrix[j][i] = mi;
+            }
+        }
+
+        matrix
+    }
+
+    /// Compute KL divergence between first-half and second-half metric distributions.
+    ///
+    /// Principled replacement for the old "phase transition" heuristic.
+    /// Returns the KL divergence for each metric name.
+    pub fn distribution_shift(&self, bins: usize) -> Vec<(String, f64)> {
+        let metric_names = self.collect_metric_names();
+        let n = self.entries.len();
+        if n < 2 {
+            return vec![];
+        }
+
+        let mid = n / 2;
+        let mut results = Vec::new();
+
+        for name in &metric_names {
+            let first_half: Vec<f64> = self.entries[..mid]
+                .iter()
+                .filter_map(|e| {
+                    e.all_metrics()
+                        .iter()
+                        .find(|(n, _)| n == name)
+                        .map(|(_, v)| *v)
+                })
+                .collect();
+
+            let second_half: Vec<f64> = self.entries[mid..]
+                .iter()
+                .filter_map(|e| {
+                    e.all_metrics()
+                        .iter()
+                        .find(|(n, _)| n == name)
+                        .map(|(_, v)| *v)
+                })
+                .collect();
+
+            if !first_half.is_empty() && !second_half.is_empty() {
+                let kl = kl_divergence(&second_half, &first_half, bins);
+                results.push((name.clone(), kl));
+            }
+        }
+
+        results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        results
+    }
+
+    /// Compute Jensen-Shannon divergence between first-half and second-half metric distributions.
+    ///
+    /// Symmetric version of KL divergence. Returns JSD for each metric name.
+    pub fn jsd_shift(&self, bins: usize) -> Vec<(String, f64)> {
+        let metric_names = self.collect_metric_names();
+        let n = self.entries.len();
+        if n < 2 {
+            return vec![];
+        }
+
+        let mid = n / 2;
+        let mut results = Vec::new();
+
+        for name in &metric_names {
+            let first_half: Vec<f64> = self.entries[..mid]
+                .iter()
+                .filter_map(|e| {
+                    e.all_metrics()
+                        .iter()
+                        .find(|(n, _)| n == name)
+                        .map(|(_, v)| *v)
+                })
+                .collect();
+
+            let second_half: Vec<f64> = self.entries[mid..]
+                .iter()
+                .filter_map(|e| {
+                    e.all_metrics()
+                        .iter()
+                        .find(|(n, _)| n == name)
+                        .map(|(_, v)| *v)
+                })
+                .collect();
+
+            if !first_half.is_empty() && !second_half.is_empty() {
+                let js = jsd(&first_half, &second_half, bins);
+                results.push((name.clone(), js));
+            }
+        }
+
+        results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        results
+    }
+
+    /// Compute permutation entropy for each metric's time series.
+    ///
+    /// Captures temporal structure in metric values.
+    pub fn permutation_entropies(&self, order: usize) -> Vec<(String, f64)> {
+        let metric_names = self.collect_metric_names();
+
+        metric_names
+            .iter()
+            .map(|name| {
+                let values: Vec<f64> = self
+                    .entries
+                    .iter()
+                    .filter_map(|e| {
+                        e.all_metrics()
+                            .iter()
+                            .find(|(n, _)| n == name)
+                            .map(|(_, v)| *v)
+                    })
+                    .collect();
+                (name.clone(), permutation_entropy(&values, order))
+            })
+            .collect()
+    }
+
+    /// Collect all unique metric names across all entries.
+    fn collect_metric_names(&self) -> Vec<String> {
+        let mut names = std::collections::HashSet::new();
+        for entry in &self.entries {
+            for (name, _) in entry.all_metrics() {
+                names.insert(name.clone());
+            }
+        }
+        names.into_iter().collect()
     }
 }

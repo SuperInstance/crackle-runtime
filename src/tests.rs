@@ -706,4 +706,142 @@ mod tests {
         assert!(CoolingRate::Fast.conservation_tolerance() > CoolingRate::Normal.conservation_tolerance());
         assert!(CoolingRate::Normal.conservation_tolerance() > CoolingRate::Slow.conservation_tolerance());
     }
+
+    // ── Information-theoretic Kiln method tests ──
+
+    #[test]
+    fn mi_matrix_empty_kiln() {
+        let kiln = Kiln::default_profile();
+        let matrix = kiln.mi_matrix(10);
+        assert!(matrix.is_empty());
+    }
+
+    #[test]
+    fn mi_matrix_correlated_metrics() {
+        let mut kiln = Kiln::default_profile();
+        for i in 0..10 {
+            let x = i as f64;
+            kiln.add_entry(format!("t{}", i), vec![
+                ("a".into(), x),
+                ("b".into(), x * 2.0 + 1.0),
+            ]);
+        }
+        let matrix = kiln.mi_matrix(5);
+        assert_eq!(matrix.len(), 2);
+        // Diagonal should be entropy (positive)
+        assert!(matrix[0][0] > 0.0);
+        assert!(matrix[1][1] > 0.0);
+        // Off-diagonal should be MI (positive for correlated)
+        assert!(matrix[0][1] > 0.0);
+        // Symmetric
+        assert!((matrix[0][1] - matrix[1][0]).abs() < 0.01);
+    }
+
+    #[test]
+    fn mi_matrix_single_metric() {
+        let mut kiln = Kiln::default_profile();
+        for i in 0..5 {
+            kiln.add_entry(format!("t{}", i), vec![("x".into(), i as f64)]);
+        }
+        let matrix = kiln.mi_matrix(5);
+        assert_eq!(matrix.len(), 1);
+        assert!(matrix[0][0] > 0.0); // entropy
+    }
+
+    #[test]
+    fn distribution_shift_no_shift() {
+        let mut kiln = Kiln::default_profile();
+        for _ in 0..10 {
+            kiln.add_entry("t", vec![("x".into(), 5.0)]);
+        }
+        let shifts = kiln.distribution_shift(5);
+        assert!(!shifts.is_empty());
+        // All same value: KL should be ~0
+        assert!(shifts[0].1.abs() < 0.01);
+    }
+
+    #[test]
+    fn distribution_shift_with_shift() {
+        let mut kiln = Kiln::default_profile();
+        // First half: concentrated (all same value) → peaked distribution
+        for _ in 0..20 {
+            kiln.add_entry("a", vec![("x".into(), 5.0)]);
+        }
+        // Second half: spread uniformly → flat distribution
+        for i in 0..20 {
+            kiln.add_entry(format!("b{}", i), vec![("x".into(), i as f64 * 2.0)]);
+        }
+        let shifts = kiln.distribution_shift(10);
+        assert!(!shifts.is_empty());
+        assert!(shifts[0].1 > 0.0, "KL should be positive, got {}", shifts[0].1);
+    }
+
+    #[test]
+    fn distribution_shift_empty() {
+        let kiln = Kiln::default_profile();
+        let shifts = kiln.distribution_shift(10);
+        assert!(shifts.is_empty());
+    }
+
+    #[test]
+    fn jsd_shift_no_shift() {
+        let mut kiln = Kiln::default_profile();
+        for _ in 0..10 {
+            kiln.add_entry("t", vec![("x".into(), 5.0)]);
+        }
+        let shifts = kiln.jsd_shift(5);
+        assert!(!shifts.is_empty());
+        assert!(shifts[0].1.abs() < 0.01);
+    }
+
+    #[test]
+    fn jsd_shift_with_shift() {
+        let mut kiln = Kiln::default_profile();
+        // First half: concentrated (all same value) → peaked distribution
+        for _ in 0..20 {
+            kiln.add_entry("a", vec![("x".into(), 5.0)]);
+        }
+        // Second half: spread uniformly → flat distribution
+        for i in 0..20 {
+            kiln.add_entry(format!("b{}", i), vec![("x".into(), i as f64 * 2.0)]);
+        }
+        let shifts = kiln.jsd_shift(10);
+        assert!(!shifts.is_empty());
+        assert!(shifts[0].1 > 0.0, "JSD should be positive, got {}", shifts[0].1);
+    }
+
+    #[test]
+    fn jsd_shift_empty() {
+        let kiln = Kiln::default_profile();
+        assert!(kiln.jsd_shift(10).is_empty());
+    }
+
+    #[test]
+    fn permutation_entropies_constant() {
+        let mut kiln = Kiln::default_profile();
+        for i in 0..10 {
+            kiln.add_entry(format!("t{}", i), vec![("x".into(), 5.0)]);
+        }
+        let pes = kiln.permutation_entropies(3);
+        assert_eq!(pes.len(), 1);
+        assert!(pes[0].1.abs() < 0.01);
+    }
+
+    #[test]
+    fn permutation_entropies_varying() {
+        let mut kiln = Kiln::default_profile();
+        for i in 0..20 {
+            kiln.add_entry(format!("t{}", i), vec![("x".into(), ((i * 17 + 3) % 97) as f64)]);
+        }
+        let pes = kiln.permutation_entropies(3);
+        assert_eq!(pes.len(), 1);
+        assert!(pes[0].1 > 0.4, "expected >0.4, got {}", pes[0].1);
+    }
+
+    #[test]
+    fn permutation_entropies_empty() {
+        let kiln = Kiln::default_profile();
+        let pes = kiln.permutation_entropies(3);
+        assert!(pes.is_empty());
+    }
 }
