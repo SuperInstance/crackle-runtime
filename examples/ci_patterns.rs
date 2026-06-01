@@ -44,7 +44,7 @@ fn main() {
     println!("=========================\n");
 
     for p in &patterns {
-        println!("[{}] {}", p.kind().to_uppercase(), p.description());
+        println!("[{}] {}", p.kind().to_string().to_uppercase(), p.description());
         println!("  confidence: {:.2}", p.confidence());
         println!("  branches: {:?}\n", p.involved_tasks());
     }
