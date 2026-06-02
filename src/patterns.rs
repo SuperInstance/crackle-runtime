@@ -1,7 +1,10 @@
 use std::fmt;
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
 
 /// The kind of pattern detected during cooling.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum PatternKind {
     /// Tasks that cluster together in metric space.
     Clustering,
@@ -30,6 +33,7 @@ impl fmt::Display for PatternKind {
 /// that wasn't designed — it emerged from the interaction of many tasks
 /// as the system cooled.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CracklePattern {
     kind: PatternKind,
     description: String,
@@ -91,10 +95,19 @@ impl CracklePattern {
         self.metrics = metrics;
         self
     }
+
+    /// Serialize this pattern to a JSON string.
+    ///
+    /// Requires the `serde` feature to be enabled.
+    #[cfg(feature = "serde")]
+    pub fn to_json(&self) -> String {
+        serde_json::to_string(self).unwrap_or_else(|_| "{}".to_string())
+    }
 }
 
 /// Detector for clustering patterns — tasks that complete near each other in metric space.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ClusteringPattern;
 
 impl ClusteringPattern {
@@ -191,6 +204,7 @@ impl ClusteringPattern {
 
 /// Detector for phase transitions — shifts in output distributions.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PhaseTransitionPattern;
 
 impl PhaseTransitionPattern {
@@ -276,6 +290,7 @@ impl PhaseTransitionPattern {
 
 /// Detector for conservation laws — metrics whose sum stays near-constant across tasks.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ConservationPattern;
 
 impl ConservationPattern {
@@ -347,6 +362,7 @@ impl ConservationPattern {
 
 /// Detector for unexpected correlations between tasks.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CorrelationPattern;
 
 impl CorrelationPattern {

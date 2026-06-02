@@ -1,7 +1,10 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
 
 /// A timestamp for when a task was fired or cooled.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Timestamp(u64);
 
 impl Timestamp {
@@ -34,6 +37,7 @@ impl Timestamp {
 
 /// Metadata about a task's execution.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TaskMetadata {
     /// When the task was fired.
     pub fired_at: Timestamp,
@@ -69,6 +73,7 @@ impl TaskMetadata {
 
 /// The output of firing a task, including named metrics for pattern detection.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TaskOutput<T> {
     /// The primary output value.
     pub value: T,

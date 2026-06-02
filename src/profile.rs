@@ -1,4 +1,6 @@
 use std::time::Duration;
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
 
 /// How fast the kiln cools — controls pattern sensitivity.
 ///
@@ -7,6 +9,7 @@ use std::time::Duration;
 ///
 /// Like pottery: the rate of cooling determines the character of the crackle.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum CoolingRate {
     /// Fast cooling: many fine cracks, lower thresholds, more patterns.
     /// Like quenching hot pottery — dramatic, lots of crackle lines.
@@ -72,6 +75,7 @@ impl CoolingRate {
 /// Just as a potter controls the cooling rate to influence crackle patterns,
 /// the thermal profile controls the sensitivity and character of pattern detection.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ThermalProfile {
     /// The cooling rate.
     pub rate: CoolingRate,

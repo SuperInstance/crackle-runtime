@@ -1,6 +1,6 @@
 [package]
 name = "crackle-runtime"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
 description = "Detect emergent patterns — clustering, correlations, phase transitions, and conservation laws — across task outputs"
@@ -8,6 +8,12 @@ repository = "https://github.com/SuperInstance/crackle-runtime"
 keywords = ["patterns", "anomaly-detection", "task", "emergent", "clustering"]
 categories = ["algorithms", "development-tools"]
 
+[features]
+default = []
+serde = ["dep:serde", "dep:serde_json"]
+
 [dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
 
 [dev-dependencies]

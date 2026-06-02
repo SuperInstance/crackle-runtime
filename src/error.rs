@@ -1,7 +1,10 @@
 use std::fmt;
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
 
 /// Errors that can occur during crackle runtime operations.
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum CrackleError {
     /// A task panicked during firing.
     TaskPanicked(String),

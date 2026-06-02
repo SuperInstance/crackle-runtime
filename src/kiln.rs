@@ -5,9 +5,12 @@ use crate::patterns::{
 use crate::profile::ThermalProfile;
 use crate::error::CrackleError;
 use crate::information::{entropy, jsd, kl_divergence, mutual_information, permutation_entropy};
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
 
 /// A completed task entry stored in the kiln.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TaskEntry {
     /// The task label.
     pub label: String,
